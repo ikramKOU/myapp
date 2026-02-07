@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Card, Table, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
-import MyToast from '../MyToast';  
+import MyToast from '../MyToast';
 
 export default class VoitureListe extends Component {
   constructor(props) {
@@ -21,27 +21,30 @@ export default class VoitureListe extends Component {
   }
 
   loadVoitures() {
-    axios.get("http://localhost:8080/api/voitures")
+    axios.get("http://localhost:8081/voitures")
       .then(response => {
-        const voitures = response.data._embedded ? response.data._embedded.voitures.map((v, index) => ({ ...v, id: index + 1 })) : [];
+        const voitures = response.data._embedded
+          ? response.data._embedded.voitures.map(v => ({
+            ...v,
+            selfLink: v._links.self.href
+          }))
+          : [];
         this.setState({ voitures });
       })
       .catch(error => console.error("Erreur chargement voitures :", error));
   }
 
-  deleteVoiture(id) {
+  deleteVoiture(voiture) {
     if (window.confirm("Voulez-vous vraiment supprimer cette voiture ?")) {
-      axios.delete(`http://localhost:8080/api/voitures/${id}`)
+      axios.delete(voiture.selfLink) // utiliser le lien complet
         .then(() => {
-          // Supprime la voiture du tableau et affiche le toast
           this.setState({
-            voitures: this.state.voitures.filter(v => v.id !== id),
+            voitures: this.state.voitures.filter(v => v.id !== voiture.id),
             show: true,
             toastMessage: "Voiture supprimée avec succès.",
-            toastType: "danger"   // rouge pour suppression
+            toastType: "danger"
           });
-
-          // Masquer le toast après 3 secondes
+          this.loadVoitures(); // recharge la table depuis le serveur
           setTimeout(() => this.setState({ show: false }), 3000);
         })
         .catch(error => {
@@ -55,6 +58,7 @@ export default class VoitureListe extends Component {
         });
     }
   }
+
 
   startEdit(voiture) {
     this.setState({
@@ -73,17 +77,31 @@ export default class VoitureListe extends Component {
     });
   }
 
-  submitEdit = (id) => {
-    axios.put(`http://localhost:8080/api/voitures/${id}`, this.state.editForm)
+  submitEdit = (voiture) => {
+    // Construire l'objet à mettre à jour
+    const updatedVoiture = {
+      marque: this.state.editForm.marque,
+      modele: this.state.editForm.modele,
+      couleur: this.state.editForm.couleur,
+      immatricule: this.state.editForm.immatricule,
+      annee: this.state.editForm.annee,
+      prix: this.state.editForm.prix
+    };
+
+    axios.put(voiture.selfLink, updatedVoiture)
       .then(() => {
         this.setState({
           editVoitureId: null,
           editForm: {},
           show: true,
           toastMessage: "Voiture mise à jour avec succès.",
-          toastType: "success"   // vert pour ajout/mise à jour
+          toastType: "success"
         });
+
+        // Recharger la liste pour avoir les dernières données
         this.loadVoitures();
+
+        // Masquer le toast après 3 secondes
         setTimeout(() => this.setState({ show: false }), 3000);
       })
       .catch(error => {
@@ -96,6 +114,7 @@ export default class VoitureListe extends Component {
         setTimeout(() => this.setState({ show: false }), 3000);
       });
   }
+
 
   render() {
     return (
@@ -143,13 +162,13 @@ export default class VoitureListe extends Component {
                         <td>
                           {isEditing ? (
                             <>
-                              <Button variant="success" size="sm" className="me-2" onClick={() => this.submitEdit(voiture.id)}>✔</Button>
+                              <Button variant="success" size="sm" className="me-2" onClick={() => this.submitEdit(voiture)}>✔</Button>
                               <Button variant="secondary" size="sm" onClick={() => this.cancelEdit()}>✖</Button>
                             </>
                           ) : (
                             <>
                               <Button variant="warning" size="sm" className="me-2" onClick={() => this.startEdit(voiture)}>Éditer</Button>
-                              <Button variant="danger" size="sm" onClick={() => this.deleteVoiture(voiture.id)}>Supprimer</Button>
+                              <Button onClick={() => this.deleteVoiture(voiture)}>Supprimer</Button>
                             </>
                           )}
                         </td>

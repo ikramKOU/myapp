@@ -42,7 +42,7 @@ export default class Voiture extends Component {
     };
 
     // Envoi au backend
-    axios.post("http://localhost:8080/api/voitures", voiture)
+    axios.post("http://localhost:8081/voitures", voiture)
       .then(response => {
         console.log("Voiture ajoutée :", response.data);
 
